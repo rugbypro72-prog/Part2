@@ -3,108 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fixed Wire Linker</title>
+    <title>Security Vault</title>
     <style>
         body {
-            font-family: sans-serif;
+            font-family: 'Courier New', Courier, monospace;
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #1a1a2e;
-            color: white;
+            justify-content: center;
+            height: 100vh;
+            background-color: #0d1117;
+            color: #58a6ff;
+            margin: 0;
+        }
+
+        /* The Secret Content (Hidden at first) */
+        #vault-content {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            border: 3px solid #238636;
+            background: #0d1117;
+            border-radius: 20px;
+            box-shadow: 0 0 20px #238636;
+            max-width: 80%;
+        }
+
+        #vault-content h1 { color: #3fb950; }
+
+        /* The Game Layout */
+        #lock-interface {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         #game-container {
             position: relative;
-            width: 400px;
-            height: 400px;
+            width: 350px;
+            height: 350px;
             display: flex;
             justify-content: space-between;
-            padding: 40px;
-            background: #16213e;
-            border: 2px solid #0f3460;
-            border-radius: 20px;
+            padding: 30px;
+            background: #161b22;
+            border: 2px solid #30363d;
+            border-radius: 10px;
         }
 
         .column {
             display: flex;
             flex-direction: column;
             justify-content: space-around;
-            z-index: 10; /* Keeps circles above the canvas */
+            z-index: 10;
         }
 
         .node {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            cursor: crosshair;
-            border: 3px solid white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            width: 30px;
+            height: 30px;
+            border-radius: 5px; /* Square "ports" look more like a vault */
+            cursor: pointer;
+            border: 2px solid #30363d;
         }
 
-        /* Crucial fix: Canvas must not block the mouse */
         canvas {
             position: absolute;
             top: 0;
             left: 0;
-            pointer-events: none; 
+            pointer-events: none;
             z-index: 5;
         }
 
-        #message {
-            height: 40px;
-            margin: 20px;
-            font-size: 1.5rem;
-            color: #4dfdcb;
-            text-shadow: 0 0 10px #4dfdcb;
+        .status-light {
+            width: 10px;
+            height: 10px;
+            background: #f85149;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            box-shadow: 0 0 5px #f85149;
         }
 
-        .hidden { visibility: hidden; }
+        .status-light.active {
+            background: #3fb950;
+            box-shadow: 0 0 10px #3fb950;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Wire Linker</h1>
-    <div id="message">Connect matching colors!</div>
-
-    <div id="game-container">
-        <canvas id="canvas"></canvas>
-        
-        <div class="column" id="left">
-            <div class="node" data-color="red" style="background: #e94560;"></div>
-            <div class="node" data-color="blue" style="background: #0077ff;"></div>
-            <div class="node" data-color="yellow" style="background: #fdfa66;"></div>
-            <div class="node" data-color="green" style="background: #00ff73;"></div>
+    <div id="lock-interface">
+        <div style="display: flex; gap: 10px;">
+            <div class="status-light" id="l1"></div>
+            <div class="status-light" id="l2"></div>
+            <div class="status-light" id="l3"></div>
+            <div class="status-light" id="l4"></div>
         </div>
+        <p>RE-WIRE TO UNLOCK VAULT</p>
+        
+        <div id="game-container">
+            <canvas id="canvas"></canvas>
+            
+            <div class="column" id="left">
+                <div class="node" data-color="#ff4444" style="background: #ff4444;"></div>
+                <div class="node" data-color="#44aaff" style="background: #44aaff;"></div>
+                <div class="node" data-color="#ffdd44" style="background: #ffdd44;"></div>
+                <div class="node" data-color="#44ff88" style="background: #44ff88;"></div>
+            </div>
 
-        <div class="column" id="right">
-            <div class="node" data-color="yellow" style="background: #fdfa66;"></div>
-            <div class="node" data-color="green" style="background: #00ff73;"></div>
-            <div class="node" data-color="red" style="background: #e94560;"></div>
-            <div class="node" data-color="blue" style="background: #0077ff;"></div>
+            <div class="column" id="right">
+                <div class="node" data-color="#ffdd44" style="background: #ffdd44;"></div>
+                <div class="node" data-color="#44ff88" style="background: #44ff88;"></div>
+                <div class="node" data-color="#ff4444" style="background: #ff4444;"></div>
+                <div class="node" data-color="#44aaff" style="background: #44aaff;"></div>
+            </div>
         </div>
     </div>
 
-    <button onclick="location.reload()" style="margin-top:20px; padding:10px 20px; cursor:pointer;">Reset Game</button>
+    <div id="vault-content">
+        <h1>🔓 ACCESS GRANTED</h1>
+        <hr>
+        <p>This is your secret vault message.</p>
+        <p><strong>"The password for the next level is: AURORA-77"</strong></p>
+        <button onclick="location.reload()" style="background:none; border:1px solid #58a6ff; color:#58a6ff; padding:10px; cursor:pointer;">Relock Vault</button>
+    </div>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('game-container');
-        const message = document.getElementById('message');
+        const lockInterface = document.getElementById('lock-interface');
+        const vaultContent = document.getElementById('vault-content');
 
-        canvas.width = 480;
-        canvas.height = 480;
+        canvas.width = 410;
+        canvas.height = 410;
 
         let isDragging = false;
         let startNode = null;
-        let activeColor = '';
         let connections = 0;
         let completedPairs = [];
-
-        // Track mouse move for visual feedback
-        let mouseX = 0;
-        let mouseY = 0;
+        let mouseX = 0, mouseY = 0;
 
         function getCenter(el) {
             const rect = el.getBoundingClientRect();
@@ -119,7 +155,6 @@
             node.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 startNode = node;
-                activeColor = node.dataset.color;
             });
         });
 
@@ -133,45 +168,40 @@
 
         window.addEventListener('mouseup', (e) => {
             if (!isDragging) return;
-
-            // Check what we dropped on
             const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
             
-            if (dropTarget && 
-                dropTarget.classList.contains('node') && 
+            if (dropTarget && dropTarget.classList.contains('node') && 
                 dropTarget.parentElement.id === 'right' && 
-                dropTarget.dataset.color === activeColor) {
+                dropTarget.dataset.color === startNode.dataset.color) {
                 
-                // Success!
-                completedPairs.push({start: startNode, end: dropTarget, color: activeColor});
-                startNode.classList.add('hidden');
-                dropTarget.classList.add('hidden');
+                completedPairs.push({start: startNode, end: dropTarget, color: startNode.dataset.color});
+                startNode.style.visibility = 'hidden';
+                dropTarget.style.visibility = 'hidden';
+                
                 connections++;
+                document.getElementById(`l${connections}`).classList.add('active');
 
                 if (connections === 4) {
-                    message.innerHTML = "✨ LEVEL COMPLETE! ✨";
+                    setTimeout(() => {
+                        lockInterface.style.display = 'none';
+                        vaultContent.style.display = 'block';
+                    }, 500);
                 }
             }
-
             isDragging = false;
-            startNode = null;
             draw();
         });
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw finished lines
             completedPairs.forEach(pair => {
                 const p1 = getCenter(pair.start);
                 const p2 = getCenter(pair.end);
                 drawLine(p1.x, p1.y, p2.x, p2.y, pair.color);
             });
-
-            // Draw active dragging line
-            if (isDragging && startNode) {
+            if (isDragging) {
                 const p1 = getCenter(startNode);
-                drawLine(p1.x, p1.y, mouseX, mouseY, activeColor);
+                drawLine(p1.x, p1.y, mouseX, mouseY, startNode.dataset.color);
             }
         }
 
@@ -180,8 +210,7 @@
             ctx.moveTo(x1, y1);
             ctx.lineTo(x2, y2);
             ctx.strokeStyle = color;
-            ctx.lineWidth = 6;
-            ctx.lineCap = 'round';
+            ctx.lineWidth = 4;
             ctx.stroke();
         }
     </script>
