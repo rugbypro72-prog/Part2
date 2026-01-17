@@ -3,20 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Part2</title>
+    <title>Fixed Wire Linker</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #2c3e50;
+            background-color: #1a1a2e;
             color: white;
-            margin: 0;
-            overflow: hidden;
         }
-
-        h1 { margin-top: 20px; }
 
         #game-container {
             position: relative;
@@ -24,139 +20,168 @@
             height: 400px;
             display: flex;
             justify-content: space-between;
-            padding: 50px;
-            background: #34495e;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            padding: 40px;
+            background: #16213e;
+            border: 2px solid #0f3460;
+            border-radius: 20px;
         }
 
         .column {
             display: flex;
             flex-direction: column;
             justify-content: space-around;
-            z-index: 2;
+            z-index: 10; /* Keeps circles above the canvas */
         }
 
         .node {
-            width: 40px;
-            height: 40px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
-            cursor: pointer;
-            border: 4px solid #ecf0f1;
-            transition: transform 0.2s;
+            cursor: crosshair;
+            border: 3px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
 
-        .node:hover { transform: scale(1.1); }
-
+        /* Crucial fix: Canvas must not block the mouse */
         canvas {
             position: absolute;
             top: 0;
             left: 0;
-            pointer-events: none; /* Let clicks pass through to nodes */
-            z-index: 1;
+            pointer-events: none; 
+            z-index: 5;
         }
 
         #message {
-            margin-top: 20px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #2ecc71;
-            height: 30px;
+            height: 40px;
+            margin: 20px;
+            font-size: 1.5rem;
+            color: #4dfdcb;
+            text-shadow: 0 0 10px #4dfdcb;
         }
 
-        button {
-            margin-top: 15px;
-            padding: 10px 20px;
-            background: #e67e22;
-            border: none;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+        .hidden { visibility: hidden; }
     </style>
 </head>
 <body>
 
-    <h1>Link the Wires</h1>
-    <div id="message"></div>
+    <h1>Wire Linker</h1>
+    <div id="message">Connect matching colors!</div>
 
-    <div id="game-container" id="container">
+    <div id="game-container">
         <canvas id="canvas"></canvas>
         
-        <div class="column" id="left-col">
-            <div class="node" data-color="red" style="background: red;"></div>
-            <div class="node" data-color="blue" style="background: blue;"></div>
-            <div class="node" data-color="yellow" style="background: yellow;"></div>
-            <div class="node" data-color="green" style="background: green;"></div>
+        <div class="column" id="left">
+            <div class="node" data-color="red" style="background: #e94560;"></div>
+            <div class="node" data-color="blue" style="background: #0077ff;"></div>
+            <div class="node" data-color="yellow" style="background: #fdfa66;"></div>
+            <div class="node" data-color="green" style="background: #00ff73;"></div>
         </div>
 
-        <div class="column" id="right-col">
-            <div class="node" data-color="yellow" style="background: yellow;"></div>
-            <div class="node" data-color="green" style="background: green;"></div>
-            <div class="node" data-color="red" style="background: red;"></div>
-            <div class="node" data-color="blue" style="background: blue;"></div>
+        <div class="column" id="right">
+            <div class="node" data-color="yellow" style="background: #fdfa66;"></div>
+            <div class="node" data-color="green" style="background: #00ff73;"></div>
+            <div class="node" data-color="red" style="background: #e94560;"></div>
+            <div class="node" data-color="blue" style="background: #0077ff;"></div>
         </div>
     </div>
 
-    <button onclick="location.reload()">Reset Game</button>
+    <button onclick="location.reload()" style="margin-top:20px; padding:10px 20px; cursor:pointer;">Reset Game</button>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('game-container');
-        const nodes = document.querySelectorAll('.node');
         const message = document.getElementById('message');
 
-        // Set canvas size
-        canvas.width = 500;
-        canvas.height = 500;
+        canvas.width = 480;
+        canvas.height = 480;
 
-        let isDrawing = false;
+        let isDragging = false;
         let startNode = null;
+        let activeColor = '';
         let connections = 0;
-        const totalConnections = 4;
+        let completedPairs = [];
 
-        nodes.forEach(node => {
+        // Track mouse move for visual feedback
+        let mouseX = 0;
+        let mouseY = 0;
+
+        function getCenter(el) {
+            const rect = el.getBoundingClientRect();
+            const contRect = container.getBoundingClientRect();
+            return {
+                x: rect.left - contRect.left + rect.width / 2,
+                y: rect.top - contRect.top + rect.height / 2
+            };
+        }
+
+        document.querySelectorAll('#left .node').forEach(node => {
             node.addEventListener('mousedown', (e) => {
-                if (node.parentElement.id === 'right-col') return; // Only start from left
-                isDrawing = true;
+                isDragging = true;
                 startNode = node;
+                activeColor = node.dataset.color;
             });
         });
 
-        window.addEventListener('mouseup', (e) => {
-            if (!isDrawing) return;
-            
-            const endNode = document.elementFromPoint(e.clientX, e.clientY);
-            
-            if (endNode && endNode.classList.contains('node') && 
-                endNode.parentElement.id === 'right-col' && 
-                endNode.dataset.color === startNode.dataset.color) {
-                
-                drawPermanentLine(startNode, endNode);
-                connections++;
-                startNode.style.visibility = 'hidden';
-                endNode.style.visibility = 'hidden';
-
-                if (connections === totalConnections) {
-                    message.innerText = "🎉 All Wires Connected!";
-                }
-            }
-            
-            isDrawing = false;
-            startNode = null;
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const rect = container.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            draw();
         });
 
-        function drawPermanentLine(n1, n2) {
-            const rect1 = n1.getBoundingClientRect();
-            const rect2 = n2.getBoundingClientRect();
-            const contRect = container.getBoundingClientRect();
+        window.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
 
+            // Check what we dropped on
+            const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+            
+            if (dropTarget && 
+                dropTarget.classList.contains('node') && 
+                dropTarget.parentElement.id === 'right' && 
+                dropTarget.dataset.color === activeColor) {
+                
+                // Success!
+                completedPairs.push({start: startNode, end: dropTarget, color: activeColor});
+                startNode.classList.add('hidden');
+                dropTarget.classList.add('hidden');
+                connections++;
+
+                if (connections === 4) {
+                    message.innerHTML = "✨ LEVEL COMPLETE! ✨";
+                }
+            }
+
+            isDragging = false;
+            startNode = null;
+            draw();
+        });
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw finished lines
+            completedPairs.forEach(pair => {
+                const p1 = getCenter(pair.start);
+                const p2 = getCenter(pair.end);
+                drawLine(p1.x, p1.y, p2.x, p2.y, pair.color);
+            });
+
+            // Draw active dragging line
+            if (isDragging && startNode) {
+                const p1 = getCenter(startNode);
+                drawLine(p1.x, p1.y, mouseX, mouseY, activeColor);
+            }
+        }
+
+        function drawLine(x1, y1, x2, y2, color) {
             ctx.beginPath();
-            ctx.moveTo(rect1.left - contRect.left + 20, rect1.top - contRect.top + 20);
-            ctx.lineTo(rect2.left - contRect.left + 20, rect2.top - contRect.top + 20);
-            ctx.strokeStyle = n1.dataset.color;
-            ctx.lineWidth = 5;
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
             ctx.stroke();
         }
     </script>
